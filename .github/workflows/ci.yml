@@ -1,0 +1,41 @@
+name: micro-rag CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  test-and-lint:
+    name: Rust Test, Clippy & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Stable Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo Registry and Build Artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Code Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy Lints
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Execute Unit and Integration Tests
+        run: cargo test --all-targets --all-features --verbose
+
+      - name: Smoke Test CLI Demo & Benchmark
+        run: |
+          cargo run --release -- demo
+          cargo run --release -- bench --num-vectors 1000 --dim 16 --top-k 5
