@@ -1,4 +1,4 @@
-# `micro-rag` 🦀
+# `micro-rag` 
 
 ```text
        _~^~^~_
@@ -17,7 +17,7 @@
 
 ---
 
-## 📸 Visual Demo & Preview
+## Visual Demo & Preview
 
 
 <p align="center">
@@ -28,7 +28,7 @@
 
 ---
 
-## 🧠 What Does This Actually Do? (For Normal People)
+## What Does This Actually Do? (For Normal People)
 
 When you ask an AI a question about your own documents—like *"How do I fix my Linux audio drivers?"*—two expensive things usually happen behind the scenes:
 1. The computer searches through thousands of pages of notes to find the exact paragraphs about audio drivers.
@@ -45,7 +45,7 @@ If 50 people ask the same question phrased slightly differently (*"My sound isn'
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```text
                         +---------------------------------------+
@@ -90,7 +90,7 @@ If 50 people ask the same question phrased slightly differently (*"My sound isn'
 
 ---
 
-## ⚙️ Deep-Dive Engineering & Mathematical Foundations
+## Deep-Dive Engineering & Mathematical Foundations
 
 ### 1. Hardware-Friendly Distance Kernels (`src/math.rs`)
 All similarity and distance operations are implemented with **4-way loop unrolling** (`sum0`, `sum1`, `sum2`, `sum3`) to break single-instruction floating-point data dependency chains, allowing LLVM to auto-vectorize loops into `AVX2` / `AVX-512` or ARM `NEON` SIMD instructions without requiring nightly intrinsics.
@@ -127,7 +127,7 @@ Every ingested or updated `DocumentRecord` is serialized into a newline-delimite
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```text
 micro-rag/
@@ -149,7 +149,7 @@ micro-rag/
 
 ---
 
-## 🚀 Quickstart & CLI Usage
+## Quickstart & CLI Usage
 
 ### Prerequisites
 * **Rust Toolchain:** `rustc >= 1.75` (stable) and `cargo`.
@@ -197,7 +197,7 @@ KD-Tree (100q)     : 4.85ms (48.50 us/query) | Recall@5: 100.0%
 
 ---
 
-## 💻 Library API Example (Embedding `micro-rag` in Rust)
+## Library API Example (Embedding `micro-rag` in Rust)
 
 You can import `micro_rag` directly as a library inside your own Rust services:
 
@@ -253,7 +253,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ---
 
-## 🧪 Testing & Continuous Integration
+## Testing & Continuous Integration
 
 `micro-rag` includes unit tests covering orthogonal/collinear vectors, zero-magnitude error handling, Flat vs. KD-Tree recall equivalence, WAL replay & compaction, and LRU cache promotion/eviction order.
 
@@ -270,6 +270,6 @@ cargo fmt --all -- --check
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the **MIT License**. See `Cargo.toml` for metadata details.
