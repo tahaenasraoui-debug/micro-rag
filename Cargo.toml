@@ -2,9 +2,13 @@
 name = "micro-rag"
 version = "0.1.0"
 edition = "2021"
-authors = ["Abass le roi des Bobbys <systems@microrag.local>"]
-description = "High-performance embedded vector engine, KD-Tree indexer, WAL storage, and LRU semantic cache."
+authors = ["Mohamed Taha Enasraoui"]
+description = "In-memory vector index, semantic query cache, and write-ahead log for local RAG pipelines. Pure safe Rust, no vector-DB dependencies."
 license = "MIT"
+repository = "https://github.com/tahaenasraoui-debug/micro-rag"
+readme = "README.md"
+keywords = ["vector-search", "rag", "semantic-cache", "wal", "embeddings"]
+categories = ["algorithms", "data-structures"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
