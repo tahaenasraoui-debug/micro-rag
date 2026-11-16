@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use clap::{Parser, Subcommand};
 use micro_rag::index::{DocumentRecord, IndexType, VectorIndex};
 use micro_rag::math::Metric;
