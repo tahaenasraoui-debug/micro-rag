@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 pub mod cache;
 pub mod index;
 pub mod math;
@@ -11,16 +13,18 @@ use storage::{StorageError, WalStorage};
 
 #[derive(Debug, Clone)]
 pub enum RagResponse {
-    /// Returned directly from the LRU Semantic Cache in O(C * D) without hitting retrieval or LLM generation.
+    /// Returned from the semantic cache. The index was not searched.
     CacheHit(CacheHit),
-    /// Cache missed; retrieved top-K context documents and synthesized a new completion.
+    /// Cache missed. `completion` is a formatted top hit, not model output.
     Retrieved {
         context: Vec<SearchResult>,
         completion: String,
     },
 }
 
-/// Unified facade combining the VectorIndex, WAL persistence engine, and LRU Semantic Cache.
+/// In-memory index, optional WAL, and semantic cache.
+///
+/// There is no embedding model and no language model in this type.
 pub struct MicroRagEngine {
     pub index: VectorIndex,
     pub cache: SemanticCache,
@@ -50,8 +54,25 @@ impl MicroRagEngine {
         Ok(Self { index, cache, wal })
     }
 
-    /// Persists a document to the WAL (if configured) and indexes it in memory.
+    /// Rejects a record the index would refuse, then appends it and indexes it.
+    ///
+    /// The WAL write happens only after the dimension and cosine-norm checks, so a
+    /// rejected vector is not left in the log. `upsert` still repeats those checks.
     pub fn ingest(&mut self, record: DocumentRecord) -> Result<(), StorageError> {
+        if record.vector.len() != self.index.dimension() {
+            return Err(VectorError::DimensionMismatch {
+                expected: self.index.dimension(),
+                actual: record.vector.len(),
+            }
+            .into());
+        }
+        if self.index.metric() == Metric::Cosine {
+            let norm_sq: f32 = record.vector.iter().map(|x| x * x).sum();
+            if norm_sq <= f32::EPSILON {
+                return Err(VectorError::ZeroMagnitudeVector.into());
+            }
+        }
+
         if let Some(ref mut wal) = self.wal {
             wal.append_upsert(&record)?;
         }
@@ -59,10 +80,9 @@ impl MicroRagEngine {
         Ok(())
     }
 
-    /// Executes the full RAG pipeline:
-    /// 1. Checks the LRU Semantic Cache (`cosine_similarity >= threshold`).
-    /// 2. On cache miss, queries the vector index (Flat or KD-Tree) for top-K documents.
-    /// 3. Synthesizes an answer and populates the semantic cache.
+    /// 1. Scan the cache with cosine similarity (always cosine, even if the index metric differs).
+    /// 2. On a miss, search the index for `top_k` documents.
+    /// 3. Format a completion from the top hit and store that pair in the cache.
     pub fn query(
         &mut self,
         query_text: &str,
@@ -79,7 +99,7 @@ impl MicroRagEngine {
             .map(|doc| format!("[{}] {}", doc.id, doc.text))
             .unwrap_or_else(|| "No relevant context found.".to_string());
 
-        let completion = format!("Synthesized answer for '{}': {}", query_text, top_snippet);
+        let completion = format!("Synthesized answer for '{query_text}': {top_snippet}");
 
         self.cache.put(
             query_text.to_string(),
@@ -91,5 +111,63 @@ impl MicroRagEngine {
             context,
             completion,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::index::VectorIndex;
+    use std::collections::HashMap;
+
+    #[test]
+    fn rejected_ingest_does_not_append_wal() {
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "micro_rag_reject_{}_{}.wal",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&path);
+
+        let mut engine = MicroRagEngine::new(
+            2,
+            Metric::Cosine,
+            IndexType::Flat,
+            4,
+            0.9,
+            Some(path.as_path()),
+        )
+        .unwrap();
+
+        let rejected = engine.ingest(DocumentRecord {
+            id: "bad".into(),
+            vector: vec![0.0, 0.0],
+            text: "zero".into(),
+            metadata: HashMap::new(),
+        });
+        assert!(rejected.is_err());
+        assert_eq!(engine.index.len(), 0);
+
+        engine
+            .ingest(DocumentRecord {
+                id: "ok".into(),
+                vector: vec![1.0, 0.0],
+                text: "kept".into(),
+                metadata: HashMap::new(),
+            })
+            .unwrap();
+        assert_eq!(engine.index.len(), 1);
+        drop(engine);
+
+        let mut recovered = VectorIndex::new(2, Metric::Cosine, IndexType::Flat).unwrap();
+        let wal = WalStorage::open(&path).unwrap();
+        assert_eq!(wal.replay_into(&mut recovered).unwrap(), 1);
+        assert_eq!(recovered.len(), 1);
+        assert_eq!(recovered.documents()[0].id, "ok");
+        let _ = std::fs::remove_file(&path);
     }
 }
