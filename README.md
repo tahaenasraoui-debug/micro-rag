@@ -158,9 +158,7 @@ micro-rag/
     └── cache.rs
 ```
 
-<p align="center">
-  <img src="./demo.jpg" alt="micro-rag terminal demo" width="800" />
-</p>
+
 
 
 ## Tests
