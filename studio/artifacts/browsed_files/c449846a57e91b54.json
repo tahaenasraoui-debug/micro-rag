@@ -1,0 +1,98 @@
+[
+  {
+    "name": "cache.rs",
+    "path": "src/cache.rs",
+    "sha": "25d0624993e481a70825728b053e5f0f7a32e41e",
+    "size": 10773,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/cache.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/cache.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/25d0624993e481a70825728b053e5f0f7a32e41e",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/cache.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/cache.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/25d0624993e481a70825728b053e5f0f7a32e41e",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/cache.rs"
+    }
+  },
+  {
+    "name": "index.rs",
+    "path": "src/index.rs",
+    "sha": "2370e29f2f75fca4062f3b938deb09d433d8503c",
+    "size": 14119,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/index.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/index.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/2370e29f2f75fca4062f3b938deb09d433d8503c",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/index.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/index.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/2370e29f2f75fca4062f3b938deb09d433d8503c",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/index.rs"
+    }
+  },
+  {
+    "name": "lib.rs",
+    "path": "src/lib.rs",
+    "sha": "73f0faf2f1063b3bbed360d19f29552aec07ee63",
+    "size": 2972,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/lib.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/lib.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/73f0faf2f1063b3bbed360d19f29552aec07ee63",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/lib.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/lib.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/73f0faf2f1063b3bbed360d19f29552aec07ee63",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/lib.rs"
+    }
+  },
+  {
+    "name": "main.rs",
+    "path": "src/main.rs",
+    "sha": "8c548229f6b618f7df683485b68c1b5749b6dd91",
+    "size": 7587,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/main.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/main.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/8c548229f6b618f7df683485b68c1b5749b6dd91",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/main.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/main.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/8c548229f6b618f7df683485b68c1b5749b6dd91",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/main.rs"
+    }
+  },
+  {
+    "name": "math.rs",
+    "path": "src/math.rs",
+    "sha": "0708f402c296e477493f8cd9dbce9f5e9574ebf7",
+    "size": 6055,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/math.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/math.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/0708f402c296e477493f8cd9dbce9f5e9574ebf7",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/math.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/math.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/0708f402c296e477493f8cd9dbce9f5e9574ebf7",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/math.rs"
+    }
+  },
+  {
+    "name": "storage.rs",
+    "path": "src/storage.rs",
+    "sha": "0761d915b0aff5f92545ca5c8da0ea7370196b7f",
+    "size": 7474,
+    "url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/storage.rs?ref=main",
+    "html_url": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/storage.rs",
+    "git_url": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/0761d915b0aff5f92545ca5c8da0ea7370196b7f",
+    "download_url": "https://raw.githubusercontent.com/tahaenasraoui-debug/micro-rag/main/src/storage.rs",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/contents/src/storage.rs?ref=main",
+      "git": "https://api.github.com/repos/tahaenasraoui-debug/micro-rag/git/blobs/0761d915b0aff5f92545ca5c8da0ea7370196b7f",
+      "html": "https://github.com/tahaenasraoui-debug/micro-rag/blob/main/src/storage.rs"
+    }
+  }
+]

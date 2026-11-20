@@ -1,3 +1,9 @@
 /target
 *.wal
 *.wal.tmp
+
+# Studio web build artifacts
+studio/node_modules/
+studio/dist/
+studio/.vercel/
+studio/.nitro/
