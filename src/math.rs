@@ -9,6 +9,8 @@ pub enum VectorError {
     EmptyVector,
     #[error("Zero-magnitude vector encountered during normalization or cosine similarity")]
     ZeroMagnitudeVector,
+    #[error("Vector contains non-finite value (NaN or infinity)")]
+    NonFiniteValue,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,11 +49,21 @@ pub fn validate_dimensions(a: &[f32], b: &[f32]) -> Result<(), VectorError> {
     Ok(())
 }
 
+#[inline]
+pub fn validate_finite(v: &[f32]) -> Result<(), VectorError> {
+    if !v.iter().all(|x| x.is_finite()) {
+        return Err(VectorError::NonFiniteValue);
+    }
+    Ok(())
+}
+
 /// Computes the inner dot product of two slices using 4-way loop unrolling
 /// to encourage LLVM auto-vectorization (SIMD).
 #[inline]
 pub fn dot_product(a: &[f32], b: &[f32]) -> Result<f32, VectorError> {
     validate_dimensions(a, b)?;
+    validate_finite(a)?;
+    validate_finite(b)?;
 
     let len = a.len();
     let chunks = len / 4;
@@ -80,6 +92,8 @@ pub fn dot_product(a: &[f32], b: &[f32]) -> Result<f32, VectorError> {
 #[inline]
 pub fn squared_euclidean_distance(a: &[f32], b: &[f32]) -> Result<f32, VectorError> {
     validate_dimensions(a, b)?;
+    validate_finite(a)?;
+    validate_finite(b)?;
 
     let len = a.len();
     let chunks = len / 4;
@@ -116,10 +130,12 @@ pub fn euclidean_distance(a: &[f32], b: &[f32]) -> Result<f32, VectorError> {
 }
 
 /// Computes the cosine similarity in `[-1.0, 1.0]`.
-/// Returns ` Err(VectorError::ZeroMagnitudeVector)` if either vector has L2 norm == 0.
+/// Returns `Err(VectorError::ZeroMagnitudeVector)` if either vector has L2 norm == 0.
 #[inline]
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> Result<f32, VectorError> {
     validate_dimensions(a, b)?;
+    validate_finite(a)?;
+    validate_finite(b)?;
 
     let mut dot = 0.0_f32;
     let mut norm_a = 0.0_f32;
@@ -144,6 +160,7 @@ pub fn l2_normalize(v: &mut [f32]) -> Result<(), VectorError> {
     if v.is_empty() {
         return Err(VectorError::EmptyVector);
     }
+    validate_finite(v)?;
     let norm_sq: f32 = v.iter().map(|&x| x * x).sum();
     if norm_sq <= f32::EPSILON {
         return Err(VectorError::ZeroMagnitudeVector);
@@ -205,5 +222,56 @@ mod tests {
             })
         );
         assert_eq!(dot_product(&empty, &empty), Err(VectorError::EmptyVector));
+    }
+
+    #[test]
+    fn test_rejects_nan_and_infinity() {
+        let valid = vec![1.0, 2.0, 3.0];
+        let invalid_cases = [
+            vec![f32::NAN, 1.0, 0.0],
+            vec![1.0, f32::INFINITY, 0.0],
+            vec![0.0, 1.0, f32::NEG_INFINITY],
+        ];
+
+        for bad in &invalid_cases {
+            assert_eq!(validate_finite(bad), Err(VectorError::NonFiniteValue));
+            assert_eq!(dot_product(bad, &valid), Err(VectorError::NonFiniteValue));
+            assert_eq!(dot_product(&valid, bad), Err(VectorError::NonFiniteValue));
+            assert_eq!(
+                squared_euclidean_distance(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                squared_euclidean_distance(&valid, bad),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                euclidean_distance(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                cosine_similarity(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                cosine_similarity(&valid, bad),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                Metric::Cosine.score(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                Metric::DotProduct.score(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert_eq!(
+                Metric::Euclidean.score(bad, &valid),
+                Err(VectorError::NonFiniteValue)
+            );
+
+            let mut to_norm = bad.clone();
+            assert_eq!(l2_normalize(&mut to_norm), Err(VectorError::NonFiniteValue));
+        }
     }
 }

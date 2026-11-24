@@ -87,7 +87,7 @@ Regenerate either block by re-running the command above it.
 use micro_rag::index::{DocumentRecord, IndexType};
 use micro_rag::math::Metric;
 use micro_rag::{MicroRagEngine, RagResponse};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         id: "arch-wiki-01".into(),
         vector: vec![0.91, 0.22, 0.10, 0.05],
         text: "Use pacman -Syu to synchronize and update all system packages.".into(),
-        metadata: HashMap::from([("distro".into(), "arch".into())]),
+        metadata: BTreeMap::from([("distro".into(), "arch".into())]),
     })?;
 
     // Optional. A dirty KD-tree rebuilds itself on the next non-dot-product search.
@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`ingest` checks the dimension and, for cosine, a non-zero L2 norm before it appends. A rejected record is not written to the log.
+`ingest` checks the dimension, finiteness (rejecting `NaN`/`Inf`), and, for cosine, a non-zero L2 norm before it appends. A rejected record is not written to the log.
 
 Scores, higher is more similar:
 
@@ -148,18 +148,18 @@ micro-rag/
 ├── Cargo.toml
 ├── LICENSE
 ├── README.md
-├── demo.jpg                 # optional; referenced below, not in the repo yet
-└── src/
-    ├── lib.rs               # MicroRagEngine
-    ├── main.rs              # demo and bench
-    ├── math.rs
-    ├── index.rs             # Flat and KD-tree
-    ├── storage.rs           # WAL
-    └── cache.rs
+├── rustfmt.toml
+├── src/
+│   ├── lib.rs               # MicroRagEngine
+│   ├── main.rs              # demo and bench
+│   ├── math.rs
+│   ├── index.rs             # Flat and KD-tree
+│   ├── storage.rs           # WAL
+│   └── cache.rs
+└── studio/                  # standalone TypeScript web playground (not backed by the Rust crate)
 ```
 
-
-
+`studio/` is a standalone TypeScript/React web playground (TanStack Start + Vite) that mirrors the algorithms in TypeScript for interactive browser exploration; it is not backed by the Rust crate.
 
 ## Tests
 

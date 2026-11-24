@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use micro_rag::index::{DocumentRecord, IndexType, VectorIndex};
 use micro_rag::math::Metric;
 use micro_rag::{MicroRagEngine, RagResponse};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -89,20 +89,20 @@ fn run_demo(wal_path: PathBuf, threshold: f32) {
             id: "sys-01".into(),
             vector: vec![0.95, 0.20, 0.05, 0.01],
             text: "Linux namespaces and seccomp-bpf restrict syscall surfaces in sandboxes.".into(),
-            metadata: HashMap::from([("domain".into(), "security".into())]),
+            metadata: BTreeMap::from([("domain".into(), "security".into())]),
         },
         DocumentRecord {
             id: "math-02".into(),
             vector: vec![0.10, 0.95, 0.15, 0.05],
             text: "The Mean Value Theorem (TAF) states f'(c) = (f(b)-f(a))/(b-a) on [a,b].".into(),
-            metadata: HashMap::from([("domain".into(), "analysis".into())]),
+            metadata: BTreeMap::from([("domain".into(), "analysis".into())]),
         },
         DocumentRecord {
             id: "ml-03".into(),
             vector: vec![0.05, 0.12, 0.96, 0.18],
             text: "Semantic caches store embeddings in an LRU arena to bypass redundant LLM calls."
                 .into(),
-            metadata: HashMap::from([("domain".into(), "ml-systems".into())]),
+            metadata: BTreeMap::from([("domain".into(), "ml-systems".into())]),
         },
     ];
 
@@ -172,7 +172,7 @@ fn run_bench(num_vectors: usize, dim: usize, top_k: usize) {
             id: format!("vec_{}", i),
             vector: rng.next_vec(dim),
             text: format!("Synthetic passage {}", i),
-            metadata: HashMap::new(),
+            metadata: BTreeMap::new(),
         };
         flat_index.upsert(doc.clone()).unwrap();
         kd_index.upsert(doc).unwrap();

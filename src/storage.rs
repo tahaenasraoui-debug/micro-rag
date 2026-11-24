@@ -180,13 +180,27 @@ mod tests {
     use super::*;
     use crate::index::IndexType;
     use crate::math::Metric;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_temp_wal(label: &str) -> PathBuf {
+        let seq = TEMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "micro_rag_{}_{}_{}.wal",
+            label,
+            std::process::id(),
+            seq
+        ));
+        let _ = std::fs::remove_file(&path);
+        path
+    }
 
     #[test]
     fn test_wal_append_replay_and_compaction() {
-        let mut temp_path = std::env::temp_dir();
-        temp_path.push(format!("micro_rag_test_{}.wal", std::process::id()));
-        let _ = std::fs::remove_file(&temp_path);
+        let temp_path = unique_temp_wal("append_replay_compact");
 
         {
             let mut wal = WalStorage::open(&temp_path).unwrap();
@@ -194,13 +208,13 @@ mod tests {
                 id: "k1".into(),
                 vector: vec![1.0, 0.0, 0.0],
                 text: "Initial v1".into(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             };
             let doc1_updated = DocumentRecord {
                 id: "k1".into(),
                 vector: vec![0.0, 1.0, 0.0],
                 text: "Updated v2".into(),
-                metadata: HashMap::new(),
+                metadata: BTreeMap::new(),
             };
             wal.append_upsert(&doc1).unwrap();
             wal.append_upsert(&doc1_updated).unwrap();
@@ -219,6 +233,137 @@ mod tests {
         let mut post_compact_index = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
         let replayed_after = wal.replay_into(&mut post_compact_index).unwrap();
         assert_eq!(replayed_after, 1);
+
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    #[test]
+    fn test_wal_multikey_metadata_replay_is_deterministic() {
+        let temp_path = unique_temp_wal("multikey_metadata");
+
+        let expected_meta = BTreeMap::from([
+            ("zebra".into(), "last".into()),
+            ("alpha".into(), "first".into()),
+            ("middle".into(), "center".into()),
+            ("beta".into(), "second".into()),
+            ("omega".into(), "end".into()),
+            ("delta".into(), "fourth".into()),
+            ("gamma".into(), "third".into()),
+            ("kappa".into(), "tenth".into()),
+        ]);
+
+        {
+            let mut wal = WalStorage::open(&temp_path).unwrap();
+            let doc = DocumentRecord {
+                id: "multi-meta".into(),
+                vector: vec![0.6, 0.8, 0.0],
+                text: "Document with many metadata keys".into(),
+                metadata: expected_meta.clone(),
+            };
+            wal.append_upsert(&doc).unwrap();
+        }
+
+        // Replay repeatedly into fresh indices to ensure deterministic serialization and CRC32
+        for _ in 0..10 {
+            let mut idx = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
+            let wal = WalStorage::open(&temp_path).unwrap();
+            let count = wal.replay_into(&mut idx).unwrap();
+            assert_eq!(count, 1);
+            assert_eq!(idx.documents()[0].metadata, expected_meta);
+        }
+
+        // Compact and replay again
+        let mut wal = WalStorage::open(&temp_path).unwrap();
+        let mut idx = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
+        wal.replay_into(&mut idx).unwrap();
+        wal.compact(&idx).unwrap();
+
+        let mut post_compact = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
+        assert_eq!(wal.replay_into(&mut post_compact).unwrap(), 1);
+        assert_eq!(post_compact.documents()[0].metadata, expected_meta);
+
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    #[test]
+    fn test_wal_replay_detects_torn_tail() {
+        let temp_path = unique_temp_wal("torn_tail");
+
+        {
+            let mut wal = WalStorage::open(&temp_path).unwrap();
+            wal.append_upsert(&DocumentRecord {
+                id: "good-1".into(),
+                vector: vec![1.0, 0.0, 0.0],
+                text: "complete frame".into(),
+                metadata: BTreeMap::from([("k".into(), "v".into())]),
+            })
+            .unwrap();
+        }
+
+        // Simulate power loss / torn write on line 2
+        {
+            let mut file = OpenOptions::new().append(true).open(&temp_path).unwrap();
+            file.write_all(b"{\"crc32\":12345,\"op\":{\"Upsert\":{\"id\":\"truncated\"")
+                .unwrap();
+            file.flush().unwrap();
+        }
+
+        let wal = WalStorage::open(&temp_path).unwrap();
+        let mut idx = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
+        let err = wal.replay_into(&mut idx).unwrap_err();
+        assert!(
+            matches!(err, StorageError::Serialization { line: 2, .. }),
+            "expected Serialization error on line 2, got {err:?}"
+        );
+        // Earlier valid frame was applied to direct replay_into caller
+        assert_eq!(idx.len(), 1);
+        assert_eq!(idx.documents()[0].id, "good-1");
+
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    #[test]
+    fn test_wal_replay_detects_crc_mismatch() {
+        let temp_path = unique_temp_wal("crc_mismatch");
+
+        {
+            let mut wal = WalStorage::open(&temp_path).unwrap();
+            wal.append_upsert(&DocumentRecord {
+                id: "good-1".into(),
+                vector: vec![1.0, 0.0, 0.0],
+                text: "intact".into(),
+                metadata: BTreeMap::new(),
+            })
+            .unwrap();
+            wal.append_upsert(&DocumentRecord {
+                id: "corrupt-2".into(),
+                vector: vec![0.0, 1.0, 0.0],
+                text: "original text".into(),
+                metadata: BTreeMap::new(),
+            })
+            .unwrap();
+        }
+
+        // Tamper with payload bytes on line 2 without updating its crc32
+        let content = std::fs::read_to_string(&temp_path).unwrap();
+        let tampered = content.replace("original text", "tampered text");
+        assert_ne!(content, tampered);
+        std::fs::write(&temp_path, tampered).unwrap();
+
+        let wal = WalStorage::open(&temp_path).unwrap();
+        let mut idx = VectorIndex::new(3, Metric::Cosine, IndexType::Flat).unwrap();
+        let err = wal.replay_into(&mut idx).unwrap_err();
+        match err {
+            StorageError::ChecksumMismatch {
+                line,
+                expected,
+                actual,
+            } => {
+                assert_eq!(line, 2);
+                assert_ne!(expected, actual);
+            }
+            other => panic!("expected ChecksumMismatch on line 2, got {other:?}"),
+        }
 
         let _ = std::fs::remove_file(&temp_path);
     }

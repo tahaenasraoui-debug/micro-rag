@@ -1,4 +1,4 @@
-use crate::math::{cosine_similarity, VectorError};
+use crate::math::{cosine_similarity, validate_finite, VectorError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,6 +98,7 @@ impl SemanticCache {
                 actual: query_embedding.len(),
             });
         }
+        validate_finite(query_embedding)?;
 
         self.total_lookups += 1;
 
@@ -148,6 +149,7 @@ impl SemanticCache {
                 actual: query_embedding.len(),
             });
         }
+        validate_finite(&query_embedding)?;
         // Validate non-zero magnitude
         let _ = cosine_similarity(&query_embedding, &query_embedding)?;
 
@@ -341,5 +343,78 @@ mod tests {
             .collect();
         assert_eq!(remaining, vec!["Q3", "Q1"]);
         assert!(cache.get(&[0.0, 1.0, 0.0]).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_put_overwrites_similar_entry_and_promotes_to_mru() {
+        let mut cache = SemanticCache::new(3, 3, 0.92).unwrap();
+
+        cache
+            .put("Q1".into(), vec![1.0, 0.0, 0.0], "Old A1".into())
+            .unwrap();
+        cache
+            .put("Q2".into(), vec![0.0, 1.0, 0.0], "A2".into())
+            .unwrap();
+
+        // Order is Q2 (MRU) -> Q1 (LRU)
+        assert_eq!(cache.len(), 2);
+        assert_eq!(cache.iter_mru_to_lru()[0].query_text, "Q2");
+
+        // Overwrite Q1 via a nearby vector (cosine > 0.99 >= 0.92)
+        cache
+            .put(
+                "Q1 refreshed".into(),
+                vec![0.99, 0.05, 0.0],
+                "New A1".into(),
+            )
+            .unwrap();
+
+        // Count stays 2 (in-place overwrite) and Q1 refreshed is promoted to MRU
+        assert_eq!(cache.len(), 2);
+        let order: Vec<&str> = cache
+            .iter_mru_to_lru()
+            .iter()
+            .map(|e| e.query_text.as_str())
+            .collect();
+        assert_eq!(order, vec!["Q1 refreshed", "Q2"]);
+
+        let hit = cache
+            .get(&[1.0, 0.0, 0.0])
+            .unwrap()
+            .expect("Expected overwritten entry to hit");
+        assert_eq!(hit.matched_query, "Q1 refreshed");
+        assert_eq!(hit.completion, "New A1");
+    }
+
+    #[test]
+    fn test_cache_rejects_non_finite_vectors() {
+        let mut cache = SemanticCache::new(2, 3, 0.92).unwrap();
+        let bad_vecs = [
+            vec![f32::NAN, 1.0, 0.0],
+            vec![1.0, f32::INFINITY, 0.0],
+            vec![0.0, 1.0, f32::NEG_INFINITY],
+        ];
+
+        for bad in &bad_vecs {
+            assert_eq!(cache.get(bad), Err(VectorError::NonFiniteValue));
+            assert_eq!(
+                cache.put("bad".into(), bad.clone(), "nope".into()),
+                Err(VectorError::NonFiniteValue)
+            );
+            assert!(cache.is_empty());
+        }
+
+        cache
+            .put("ok".into(), vec![1.0, 0.0, 0.0], "answer".into())
+            .unwrap();
+        for bad in &bad_vecs {
+            assert_eq!(cache.get(bad), Err(VectorError::NonFiniteValue));
+            assert_eq!(
+                cache.put("bad2".into(), bad.clone(), "nope".into()),
+                Err(VectorError::NonFiniteValue)
+            );
+        }
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.hit_rate(), 0.0);
     }
 }

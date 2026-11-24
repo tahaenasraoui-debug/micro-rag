@@ -1,16 +1,17 @@
 use crate::math::{
-    cosine_similarity, dot_product, l2_normalize, squared_euclidean_distance, Metric, VectorError,
+    cosine_similarity, dot_product, l2_normalize, squared_euclidean_distance, validate_finite,
+    Metric, VectorError,
 };
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BTreeMap, BinaryHeap, HashMap};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DocumentRecord {
     pub id: String,
     pub vector: Vec<f32>,
     pub text: String,
-    pub metadata: HashMap<String, String>,
+    pub metadata: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +19,7 @@ pub struct SearchResult {
     pub id: String,
     pub score: f32,
     pub text: String,
-    pub metadata: HashMap<String, String>,
+    pub metadata: BTreeMap<String, String>,
 }
 
 /// Helper wrapper to turn `std::collections::BinaryHeap` (a max-heap) into a min-heap
@@ -124,6 +125,7 @@ impl VectorIndex {
                 actual: record.vector.len(),
             });
         }
+        validate_finite(&record.vector)?;
         if self.metric == Metric::Cosine {
             let norm_sq: f32 = record.vector.iter().map(|x| x * x).sum();
             if norm_sq <= f32::EPSILON {
@@ -208,6 +210,7 @@ impl VectorIndex {
                 actual: query.len(),
             });
         }
+        validate_finite(query)?;
         if k == 0 || self.documents.is_empty() {
             return Ok(Vec::new());
         }
@@ -369,25 +372,25 @@ mod tests {
                 id: "doc_rust".into(),
                 vector: vec![0.9, 0.1, 0.0, 0.0],
                 text: "Rust systems programming and borrow checker".into(),
-                metadata: HashMap::from([("lang".into(), "rust".into())]),
+                metadata: BTreeMap::from([("lang".into(), "rust".into())]),
             },
             DocumentRecord {
                 id: "doc_linux".into(),
                 vector: vec![0.8, 0.2, 0.1, 0.0],
                 text: "Linux kernel namespaces and seccomp filters".into(),
-                metadata: HashMap::from([("topic".into(), "os".into())]),
+                metadata: BTreeMap::from([("topic".into(), "os".into())]),
             },
             DocumentRecord {
                 id: "doc_cooking".into(),
                 vector: vec![0.0, 0.1, 0.9, 0.2],
                 text: "Spicy rice cakes tteokbokki recipe".into(),
-                metadata: HashMap::from([("topic".into(), "food".into())]),
+                metadata: BTreeMap::from([("topic".into(), "food".into())]),
             },
             DocumentRecord {
                 id: "doc_math".into(),
                 vector: vec![0.1, 0.9, 0.1, 0.0],
                 text: "Theoreme des accroissements finis and analysis".into(),
-                metadata: HashMap::from([("topic".into(), "math".into())]),
+                metadata: BTreeMap::from([("topic".into(), "math".into())]),
             },
         ]
     }
@@ -433,5 +436,96 @@ mod tests {
         assert_eq!(flat_res[0].id, "doc_cooking");
         assert_eq!(kd_res[0].id, "doc_cooking");
         assert_eq!(flat_res[1].id, kd_res[1].id);
+    }
+
+    #[test]
+    fn test_dot_product_search_flat_and_kdtree() {
+        let docs = vec![
+            DocumentRecord {
+                id: "aligned_small".into(),
+                vector: vec![1.0, 0.0, 0.0],
+                text: "unit along x".into(),
+                metadata: BTreeMap::new(),
+            },
+            DocumentRecord {
+                id: "angled_large".into(),
+                vector: vec![3.0, 4.0, 0.0],
+                text: "large magnitude".into(),
+                metadata: BTreeMap::new(),
+            },
+            DocumentRecord {
+                id: "opposite".into(),
+                vector: vec![-5.0, 0.0, 0.0],
+                text: "negative dot product".into(),
+                metadata: BTreeMap::new(),
+            },
+        ];
+
+        let mut flat_idx = VectorIndex::new(3, Metric::DotProduct, IndexType::Flat).unwrap();
+        let mut kd_idx = VectorIndex::new(3, Metric::DotProduct, IndexType::KdTree).unwrap();
+
+        for doc in docs {
+            flat_idx.upsert(doc.clone()).unwrap();
+            kd_idx.upsert(doc).unwrap();
+        }
+
+        // Query [2.0, 0.0, 0.0]:
+        // - angled_large  -> 6.0 (wins dot product despite lower cosine)
+        // - aligned_small -> 2.0
+        // - opposite      -> -10.0
+        let query = vec![2.0, 0.0, 0.0];
+        let flat_res = flat_idx.search(&query, 3).unwrap();
+        let kd_res = kd_idx.search(&query, 3).unwrap();
+
+        assert_eq!(flat_res.len(), 3);
+        assert_eq!(flat_res, kd_res);
+        assert_eq!(flat_res[0].id, "angled_large");
+        assert!((flat_res[0].score - 6.0).abs() < 1e-6);
+        assert_eq!(flat_res[1].id, "aligned_small");
+        assert!((flat_res[1].score - 2.0).abs() < 1e-6);
+        assert_eq!(flat_res[2].id, "opposite");
+        assert!((flat_res[2].score - (-10.0)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_upsert_and_search_reject_non_finite_vectors() {
+        let invalid_vectors = [
+            vec![f32::NAN, 1.0, 0.0],
+            vec![1.0, f32::INFINITY, 0.0],
+            vec![0.0, 1.0, f32::NEG_INFINITY],
+        ];
+
+        for metric in [Metric::Cosine, Metric::DotProduct, Metric::Euclidean] {
+            for index_type in [IndexType::Flat, IndexType::KdTree] {
+                let mut idx = VectorIndex::new(3, metric, index_type).unwrap();
+
+                for bad_vec in &invalid_vectors {
+                    // Reject non-finite queries even on empty index and k == 0
+                    assert_eq!(idx.search(bad_vec, 1), Err(VectorError::NonFiniteValue));
+                    assert_eq!(idx.search(bad_vec, 0), Err(VectorError::NonFiniteValue));
+
+                    let err = idx.upsert(DocumentRecord {
+                        id: "bad".into(),
+                        vector: bad_vec.clone(),
+                        text: "invalid".into(),
+                        metadata: BTreeMap::new(),
+                    });
+                    assert_eq!(err, Err(VectorError::NonFiniteValue));
+                    assert!(idx.is_empty());
+                }
+
+                idx.upsert(DocumentRecord {
+                    id: "good".into(),
+                    vector: vec![1.0, 0.0, 0.0],
+                    text: "valid".into(),
+                    metadata: BTreeMap::new(),
+                })
+                .unwrap();
+
+                for bad_vec in &invalid_vectors {
+                    assert_eq!(idx.search(bad_vec, 1), Err(VectorError::NonFiniteValue));
+                }
+            }
+        }
     }
 }

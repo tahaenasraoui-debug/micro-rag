@@ -39,3 +39,29 @@ jobs:
         run: |
           cargo run --release -- demo
           cargo run --release -- bench --num-vectors 1000 --dim 16 --top-k 5
+
+  studio:
+    name: Studio Typecheck & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+
+      - name: Install Studio Dependencies
+        run: npm ci
+
+      - name: Typecheck Studio
+        run: npm run typecheck
+
+      - name: Build Studio
+        run: npm run build

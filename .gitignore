@@ -2,8 +2,11 @@
 *.wal
 *.wal.tmp
 
-# Studio web build artifacts
+# Studio web build artifacts & local env
 studio/node_modules/
 studio/dist/
 studio/.vercel/
 studio/.nitro/
+studio/.env
+studio/.env.local
+studio/.env.*.local
