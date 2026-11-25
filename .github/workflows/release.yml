@@ -1,0 +1,79 @@
+name: Release Windows Binary
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional tag to publish a GitHub Release (e.g. v1.0.0); leave blank to upload workflow artifact only"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release-windows:
+    name: Build & Release Windows Binary
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Stable Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry and Build Artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Windows Release Binary
+        run: cargo build --release --locked
+
+      - name: Stage Binary and Run Smoke Tests
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -Path "target\release\micro-rag.exe" -Destination "dist\micro-rag.exe" -Force
+          Push-Location dist
+          try {
+            .\micro-rag.exe --help
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            .\micro-rag.exe demo
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Generate SHA256SUMS.txt
+        run: |
+          $hash = (Get-FileHash -Path "dist\micro-rag.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          $sumsFile = Join-Path (Resolve-Path "dist").Path "SHA256SUMS.txt"
+          [System.IO.File]::WriteAllText($sumsFile, "$hash  micro-rag.exe`n")
+          Get-Content -Path $sumsFile
+
+      - name: Upload Windows Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: micro-rag-windows-x86_64
+          path: |
+            dist/micro-rag.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/micro-rag.exe
+            dist/SHA256SUMS.txt

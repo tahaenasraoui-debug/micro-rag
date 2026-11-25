@@ -1,6 +1,10 @@
 /target
 *.wal
 *.wal.tmp
+*.exe
+dist/
+build/
+*.spec
 
 # Studio web build artifacts & local env
 studio/node_modules/

@@ -31,6 +31,10 @@ Pure safe Rust (`#![forbid(unsafe_code)]`). No vector-database client and no vec
 - Stable Rust, edition 2021. Minimum supported Rust version has not been measured.
 - Dependencies: `serde`, `serde_json`, `thiserror`, `clap`. `clap` is a normal dependency because the binary lives in the same package. It is not behind a feature flag.
 
+## Windows Download
+
+Prebuilt Windows (`x86_64`) executables (`micro-rag.exe`) and `SHA256SUMS.txt` checksums are available on [GitHub Releases](https://github.com/tahaenasraoui-debug/micro-rag/releases/latest).
+
 ## Build
 
 ```bash
@@ -142,7 +146,9 @@ Scores, higher is more similar:
 
 ```text
 micro-rag/
-├── .github/workflows/ci.yml
+├── .github/workflows/
+│   ├── ci.yml
+│   └── release.yml
 ├── .gitignore
 ├── Cargo.lock
 ├── Cargo.toml
