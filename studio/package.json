@@ -1,5 +1,5 @@
 {
-  "name": "app-builder-workspace",
+  "name": "micro-rag-studio",
   "private": true,
   "sideEffects": false,
   "type": "module",
