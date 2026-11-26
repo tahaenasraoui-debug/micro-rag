@@ -58,7 +58,7 @@ jobs:
           cache-dependency-path: studio/package-lock.json
 
       - name: Install Studio Dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Typecheck Studio
         run: npm run typecheck
