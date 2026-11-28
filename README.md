@@ -191,7 +191,7 @@ Contributions, bug reports, and feature suggestions are welcome. For larger chan
 
 4. Open a Pull Request describing what changed and why (link any related issue).
 
-Keep the Rust crate (`src/`) zero-dependency. If modifying `studio/`, also run `cd studio && npm run typecheck && npm run build`.
+Keep the Rust crate's dependency footprint small (no database clients, HTTP servers, or ML runtimes). If modifying `studio/`, also run `cd studio && npm run typecheck && npm run build`.
 
 When reporting bugs, please include steps to reproduce, expected vs. actual behavior, and your environment details (OS and Rust toolchain version).
 
