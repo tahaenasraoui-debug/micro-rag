@@ -175,6 +175,26 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 ```
 
+## Contributing
+
+Contributions, bug reports, and feature suggestions are welcome. For larger changes or new features, please open an issue first to discuss the approach before writing code.
+
+1. Fork the repository and create a branch from `main` (e.g., `git checkout -b fix/short-description` or `feat/short-description`).
+2. Keep pull requests focused on a single change and follow the existing code style.
+3. Run the local checks before opening a PR:
+
+   ```bash
+   cargo fmt --all -- --check
+   cargo clippy --all-targets --all-features -- -D warnings
+   cargo test --all-targets --all-features
+   ```
+
+4. Open a Pull Request describing what changed and why (link any related issue).
+
+Keep the Rust crate (`src/`) zero-dependency. If modifying `studio/`, also run `cd studio && npm run typecheck && npm run build`.
+
+When reporting bugs, please include steps to reproduce, expected vs. actual behavior, and your environment details (OS and Rust toolchain version).
+
 ## License
 
 MIT. Copyright (c) 2026 Mohamed Taha Enasraoui. See [LICENSE](LICENSE).
